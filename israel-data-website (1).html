@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Israel Data Visualization</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        /* Reset and base styles */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            position: fixed; /* Prevents bounce on iOS */
+        }
+
+        /* Navigation styles */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            text-decoration: none;
+        }
+
+        .navbar-links {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .navbar-links a {
+            color: #333;
+            text-decoration: none;
+            padding: 5px 8px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #333;
+            padding: 5px;
+            margin-left: auto;
+        }
+
+        /* Mobile navigation */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1rem;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .navbar-links {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background: rgba(255, 255, 255, 0.95);
+                padding: 10px;
+                flex-direction: column;
+                gap: 5px;
+                display: none;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+
+            .navbar-links.active {
+                display: flex;
+            }
+
+            .navbar-links a {
+                padding: 10px;
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        /* Map container */
+        #map {
+            height: 100vh;
+            width: 100vw;
+            margin-top: 60px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            right: 0;
+            width: 300px;
+            height: calc(100vh - 60px);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 900;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: 50vh;
+                top: auto;
+                bottom: 0;
+                transform: translateY(100%);
+            }
+
+            .sidebar.active {
+                transform: translateY(0) !important;
+            }
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            z-index: 901;
+            background: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-toggle {
+                bottom: 20px;
+                top: auto;
+                right: 20px;
+                padding: 12px;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        /* Info box styles */
+        .info-box {
+            padding: 6px 8px;
+            background: white;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+
+        /* Popup styles */
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: rgba(255,255,255,0.9);
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .popup-link {
+            color: #0078A8;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 8px 0;
+            display: inline-block; /* Better touch target */
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px; /* Increased for better touch targets */
+            padding: 5px 0;
+        }
+
+        .legend-color {
+            width: 24px; /* Larger for touch */
+            height: 24px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+
+        /* Touch-friendly buttons */
+        button {
+            min-height: 44px; /* iOS minimum touch target size */
+            min-width: 44px;
+        }
+
+        /*Loading indicator
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 2000;
+            display: none;
+        }*/
+    </style>
+</head>
+<body>
+    <!-- Loading indicator -->
+    <div class="loading" id="loading">Loading map...</div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="#" class="navbar-brand">Israel Data Viz</a>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-links" id="navLinks">
+            <a href="#" onclick="showAbout()">About</a>
+            <a href="#" onclick="showData()">Data</a>
+            <a href="https://github.com/yourusername" target="_blank">GitHub</a>
+        </div>
+    </nav>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Sidebar Toggle -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-info"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <h2>Information</h2>
+        <div class="legend">
+            <h3>Intensity Legend</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: red;"></div>
+                <span>Very High (>0.8)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: yellow;"></div>
+                <span>High (0.6-0.8)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: lime;"></div>
+                <span>Medium (0.4-0.6)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: cyan;"></div>
+                <span>Low (0.2-0.4)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: blue;"></div>
+                <span>Very Low (<0.2)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+    
+    <script>
+        // Show loading indicator
+        document.getElementById('loading').style.display = 'block';
+
+        // Sample data points - Replace with your actual data
+        const points = [
+            [31.7767, 35.2345, 0.8, "Jerusalem Site", "https://example.com/jerusalem"],
+            [32.0853, 34.7818, 0.6, "Tel Aviv Location", "https://example.com/telaviv"],
+            [31.8928, 34.8088, 0.4, "Central Region", "https://example.com/central"],
+            [32.7940, 34.9896, 0.7, "Haifa Point", "https://example.com/haifa"],
+            [31.2518, 34.7915, 0.5, "Southern Region", "https://example.com/southern"]
+        ];
+
+        // Initialize map
+        const map = L.map('map', {
+            zoomControl: true,
+            minZoom: 7,
+            tap: true // Enable tap handler for iOS
+        }).setView([31.7683, 35.2137], 8);
+
+        // Add minimal style map tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '©OpenStreetMap, ©CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19,
+            opacity: 0.6
+        }).addTo(map);
+
+        // Initialize heatmap layer
+        const heatData = points.map(point => [point[0], point[1], point[2]]);
+        const heatLayer = L.heatLayer(heatData, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 10,
+            gradient: {
+                0.4: 'blue',
+                0.6: 'cyan',
+                0.7: 'lime',
+                0.8: 'yellow',
+                1.0: 'red'
+            }
+        }).addTo(map);
+
+        // Initialize point layer
+        const pointsLayer = L.layerGroup().addTo(map);
+        
+        // Create points with popups
+        points.forEach(point => {
+            const marker = L.circleMarker([point[0], point[1]], {
+                radius: 12, // Larger radius for touch
+                fillColor: getColor(point[2]),
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            });
+            
+            const popupContent = `
+                <div>
+                    <h3>${point[3]}</h3>
+                    <p>Intensity: ${point[2]}</p>
+                    <a href="${point[4]}" target="_blank" class="popup-link">View Details →</a>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent, {
+                className: 'custom-popup'
+            });
+            
+            marker.on('click', function() {
+                this.openPopup();
+            });
+            
+            pointsLayer.addLayer(marker);
+        });
+
+        function getColor(intensity) {
+            if (intensity > 0.8) return 'red';
+            if (intensity > 0.6) return 'yellow';
+            if (intensity > 0.4) return 'lime';
+            if (intensity > 0.2) return 'cyan';
+            return 'blue';
+        }
+
+        // Toggle between heatmap and points based on zoom level
+        map.on('zoomend', function() {
+            const currentZoom = map.getZoom();
+            if (currentZoom > 10) {
+                map.removeLayer(heatLayer);
+                pointsLayer.addTo(map);
+            } else {
+                map.removeLayer(pointsLayer);
+                heatLayer.addTo(map);
+            }
+        });
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            document.getElementById('navLinks').classList.toggle('active');
+        }
+
+        // Sidebar functionality
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const navLinks = document.getElementById('navLinks');
+            const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+            
+            if (!event.target.closest('.navbar-links') && 
+                !event.target.closest('.mobile-menu-btn') && 
+                navLinks.classList.contains('active')) {
+                navLinks.classList.remove('active');
+            }
+        });
+
+        // About modal
+        function showAbout() {
+            alert('About this visualization: \nThis interactive map shows data points across Israel with both heatmap and point-based visualization depending on zoom level.');
+            if (window.innerWidth <= 768) {
+                document.getElementById('navLinks').classList.remove('active');
+            }
+        }
+
+        // Data modal
+        function showData() {
+            alert('Data information: \nThis visualization uses data points with intensity values ranging from 0 to 1, representing various metrics across different locations in Israel.');
+            if (window.innerWidth <= 768) {
+                document.getElementById('navLinks').classList.remove('active');
+            }
+        }
+
+        // Hide loading indicator when map is ready
+        map.on('load', function() {
+            document.getElementById('loading').style.display = 'none';
+        });
+
+        // Prevent pinch zoom on mobile devices except on map
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('#map')) return;
+            if (e.scale !== 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
