@@ -653,8 +653,8 @@
         const heatData = points.map(point => [point[0], point[1], point[2] / maxIntensity]);
         const heatLayer = L.heatLayer(heatData, {
         radius: 25,
-        blur: 20,
-        maxZoom: 10,
+        blur: 10,
+        maxZoom: 12,
         gradient: {
             0.07: 'blue',   // 1 casualty
             0.1: 'cyan',    // 2 casualties
