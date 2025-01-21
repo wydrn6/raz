@@ -710,7 +710,7 @@
         // Toggle between heatmap and points based on zoom level
         map.on('zoomend', function() {
             const currentZoom = map.getZoom();
-            if (currentZoom > 10) {
+            if (currentZoom > 12) {
                 map.removeLayer(heatLayer);
                 pointsLayer.addTo(map);
             } else {
