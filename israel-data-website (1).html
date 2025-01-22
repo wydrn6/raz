@@ -635,7 +635,7 @@
         // Initialize map
         const map = L.map('map', {
             zoomControl: true,
-            minZoom: 1,
+            minZoom: 5,
             tap: true // Enable tap handler for iOS
         }).setView([31.7683, 35.2137], 8);
 
@@ -709,7 +709,7 @@
         // Toggle between heatmap and points based on zoom level
         map.on('zoomend', function() {
             const currentZoom = map.getZoom();
-            if (currentZoom > 1) {
+            if (currentZoom > 12) {
                 map.removeLayer(heatLayer);
                 pointsLayer.addTo(map);
             } else {
