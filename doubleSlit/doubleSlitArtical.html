@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בלוג פיזיקה</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --accent-color: #2b6cb0;
+            --accent-hover: #2c5282;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --shadow-hover: rgba(0, 0, 0, 0.15);
+            --tag-bg: #edf2f7;
+            --code-bg: #f7fafc;
+            --quote-bg: #edf2f7;
+            --quote-border: #cbd5e0;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #999999;
+            --border-color: #404040;
+            --accent-color: #f97316;
+            --accent-hover: #ea580c;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --shadow-hover: rgba(0, 0, 0, 0.6);
+            --tag-bg: #404040;
+            --code-bg: #1a1a1a;
+            --quote-bg: #333333;
+            --quote-border: #555555;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Heebo', 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent-color);
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        main {
+            padding: 3rem 0;
+        }
+
+        .article {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 3rem;
+            box-shadow: 0 1px 3px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            margin-bottom: 2rem;
+        }
+
+        .article-header {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .article-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .article-meta {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .article-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: var(--tag-bg);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .article-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+
+        .article-content h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 2.5rem 0 1rem 0;
+            line-height: 1.3;
+        }
+
+        .article-content h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 2rem 0 0.75rem 0;
+            line-height: 1.4;
+        }
+
+        .article-content p {
+            margin-bottom: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .article-content a {
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .article-content a:hover {
+            color: var(--accent-hover);
+            border-bottom-color: var(--accent-hover);
+        }
+
+        .article-content ul, .article-content ol {
+            margin: 1.5rem 0;
+            padding-right: 2rem;
+        }
+
+        .article-content li {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .article-content blockquote {
+            background: var(--quote-bg);
+            border-right: 4px solid var(--accent-color);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 8px 0 0 8px;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .article-content code {
+            background: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            direction: ltr;
+            display: inline-block;
+        }
+
+        .article-content pre {
+            background: var(--code-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+            direction: ltr;
+        }
+
+        .article-content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            font-size: 0.9rem;
+        }
+
+        .article-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 2rem 0;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .article-content img:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--shadow-hover);
+        }
+
+        .article-footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .share-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .share-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .share-btn:hover {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            transform: translateY(-1px);
+        }
+
+        .reading-time {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem 0;
+            margin-top: 4rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .footer-content {
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 15px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .article {
+                padding: 2rem 1.5rem;
+            }
+
+            .article-title {
+                font-size: 2rem;
+            }
+
+            .article-content h2 {
+                font-size: 1.5rem;
+            }
+
+            .article-content h3 {
+                font-size: 1.25rem;
+            }
+
+            .article-footer {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">רז גנאור</a>
+                <div class="nav-section">
+                    <a href="updated_blog_hebrew.html" class="back-link">→ חזרה לבלוג</a>
+                    <button class="theme-toggle" onclick="toggleTheme()" aria-label="החלף מצב כהה">
+                        <span id="theme-icon">🌙</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <article class="article">
+                <div class="article-header">
+                    <h1 class="article-title">מכניקת קוונטים ההסבר הפשוט</h1>
+                    <div class="article-meta">פורסם ב-13 בספטמבר 2025</div>
+                    <div class="article-tags">
+                        <span class="tag">פיזיקת הקוונטים</span>
+                        <span class="tag">סופרפוזיציה</span>
+                        <span class="tag">ניסוי</span>
+                    </div>
+                </div>
+
+                <div class="article-content">
+                    <p>
+זריז מה מרכיב גם את המסך שאתם קוראים בו גם את הכיסא שאתם יושבים עליו וגם את הלכלוך במקלדת שהייתם צריכים לנקות כבר מזמן. אטומים, אטומים הם אבני היסוד שהחפצים שסובבים אותנו מורכבים מהם הידע על אטומים נפוץ אך לא כולם יוכלו להגיד ממה מורכב האור
+.שסובב אותנו מורכב. זו שאלה מורכבת שמדענים גדולים כמו ניוטון והויגנס התווכחו עליה ובשביל לפתור אותה נצטרך לחזור אחורה בזמן
+                    </p>
+                    <p>המדען שפתר את התעלומה הזאת היה בעל ידע כה רב תחומי עד שהביוגרפיה שלו כונתה ״האיש האחרון שידע הכל״ למדען קראו טומאס יאנג.
+ב-1801 יאנג עיצב ניסוי פשוט למדי אבל שבפעם הראשונה הצליח להראות בדיוק ממה מורכב אור.
+                    </p>
+                    <blockquote>״ושהוא [הניסוי] מכיל בתוכו את הלב של מכניקת הקוונטים. במציאות, הוא מכיל את התעלומה היחידה.״ — ריצ'רד פיינמן</blockquote>
+
+                    <h2>ניסוי שתי הסדקים</h2>
+                    
+                    <p>באותן שנים הוויכוח המדעי יכל להתפלג לשתיים. כאלה שהאמינו שאור מורכב מגל שיוצא ממקור האור וכאלה שהאמינו שהוא מורכב מהמון חלקיקים (כדורים) קטנים.
+בשביל ליישב את הוויכוח יאנג לקח שתי חריצים וכיוון אותם אל מול השמש. הוא כיסה רק את אחד החריצים ורק אה את הצורה של האור שפוגע במסך מאחור</p>
+                    
+                    <img src="untitled1.png" alt="תמונה המדגימה את הניסוי הראשוני של יאנג" loading="lazy">
+
+                    <p>לאחר מכן הוא החליף בין החריץ המכוסה לפתוח וקיבל את הצורה הבאה</p>
+
+                    <img src="untitled2.png" alt="תמונה המדגימה את הניסוי הראשוני של יאנג" loading="lazy">
+
+	                <p>עד כה לא בדיוק "הבן אדם האחרון שידע הכל". כל אחד יכל לנחש מה יקרה בניסוי ולכן לא יפתיע אותנו שכשהוא יוריד את הכיסוי נראה את שילוב שתי התוצאות הקודמות</p>
+		
+	                <img src="untitled.png" alt="תמונה המדגימה את הציפיה שלנו מהניסוי" loading="lazy">
+
+	                <p>אך כשהוא פתח את שני החריצים יאנג ראה על המסך צורה כזו</p>
+		
+	                <img src="untitled5.png" alt="תמונה המדגימה תוצאות ניסוי שני החריצים" loading="lazy">
+
+                    <p>השם של הצורה הזאת ואיך שפיזיקאים יקראו לדבר שיאנג ראה על המסך זה צורת התעבכות של שתי גלים. במילים פשוטות זה אומר שהאור שעובר מחריץ אחד
+על האור שעובר מחריץ השני. ולכן לא נראה את שילוב שתי התוצאות הקודמות, אלה נראה נקודות בהירות כששני הגלים יגיעו בשיא הגל ויחזקו אחד את השני ונהקודות החשוכות יווצרו כשגל מחריץ
+אחד בשפלו הגל מהחריץ השני בשיאו ויבטלו אחד את השני.</p>
+
+
+                    <img src="waves_inter_b.jpg" alt="תמונה המדגימה תוצאות ניסוי שני החריצים" loading="lazy">
+
+                    <h3>אינשטיין מגיע להרוס הכל</h3>
+
+                    <p> כדבר שהפך כבר להרגלו אינשטיין ב-1921 מקבל פרס נובל על גילוי שהופך את הקונסזוס המדעי על ראשו.
+                        בלי להיכנס לפרטים הטכנים הוא הראה שהמהירות שאלקטרונים משתחררים ממתכת כשמכוונים עליה אור תלויה 
+                        <b style="font-size: 1.1em; font-weight: 700;">בצבע</b>
+                        של האור ולא בעוצמה שלו. 
+                        בעצם הוכיח שאור אינו רציף, אלא נפלט ונקלט בפקטות אנרגיה בדידות. פקטות אנרגיה אלו כונו על ידו פוטונים.
+                    </p>
+
+<p>בעצם יש לנו קונפליקט בין שני הניסויים כאשר אחד מראה תוצאות שנראות לנו מנוגדות לחלוטין לתוצאות הניסוי השני. אחד תומך במודל של גלים בזמן שהשני תומך במודל של חלקיקים. </p>
+
+<p>
+    בכדי לפתור את הקונפליקט פיזיקאים ניסו להבין איך לקבל את צורת ההתאבכות שראינו מקודם.
+    הם שיערו שהפוטונים עוברים
+     את החריצים ואז מתנגשים או משפיעים אחד על השני בצורה שגורמת להם לייצר את ההתאבכות שראינו מקודם.
+ ובכדי לבדוק את השערתם הם החליטו לשלוח פוטון בודד דרך החריצים בציפיה שההתעבכות שראו תעלם. 
+</p>
+
+                    <h3>ניסוי שתי החריצים עם פוטונים בודדים</h3>
+
+                    <p>צוותי פיזיקאים ביצעו את הניסוי עם פוטונים בודדים ונתנו להם להצתבר ונחשו מה, אותה צורת התאבכות בדיוק נוצרה על המסך</p>
+
+            <img src="single_partical_inter.jpg" alt="תמונה של תוצאות הניסוי" loading="lazy">
+
+                    <p>אז מה זה אומר, אחד שלפעמים לא קל להיות פיזיקאי נסיוני ולספור 6235 חלקיקים שעברו דרך שתי חריצים במשך שעתיים, ושתיים שחלקיקים בודדים איכשהו מצליחים להתנהג כמו גל ולייצר צורת התאבכות.
+אם תחשבו על זה אבל לא יותר מידי תבינו שהחלקיק הבודד ההוא עבר מנקודה אחת לשניה בצורה שהצליח לבטל את עצמו כאילו היה גל. תוצאות הניסוי בילתי ניתנות לתפיסת האינטואיציה שלנו או במילותיו של אחד מאבות
+תאורית מכניקת הקוונטים</p>
+
+                    <blockquote>"לא רק שהיקום מוזר יותר ממה שאנחנו חושבים, הוא מוזר יותר ממה שאנחנו מסוגלים לחשוב" — ורנר היזנברג</blockquote>
+
+	                    <h3>חזרה להיגיון</h3>
+
+	<p>עם השנים התפתחו אינטרפרטציות שונות במטרה להסביר את כל המוזרות שרואים בניסויים. כיום האינטרפרטציה המקובלת ביותר נקראת אינטרפרטציית קופנהגן 
+שבא חלקיקים קוונטים מיוצגים על ידי גל הסתברות עד שהוא נמדד (לדוגמא המסך בניסוי שלנו) ואז גל ההסתברויות קורס לנקודה אחת בהתאם להסתברות הגל. בניסוי שלנו זה יראה ככה. </p>
+
+            <img src="Anim.gif" alt="תמונה של אינטרפרטצית קופנהגן" loading="lazy">
+
+<p>למצב שהחלקיקים נמצאים בו לפני שמודדים אותם קוראים סופרפוזיציה קוונטית כדי לתת שם לתופעה הזאת שאנחנו לא יכולים לתפוס.</p>
+
+<p>חשוב להבין שהדרך שהחלקיקים פועלים נוגדת את האינטואיציה שלנו כי לעולם לא ראינו אף חפץ כמו כדור הופך לגל הסתברות. גם באינטרפרטציות ההמודרניות
+שלנו קיימות בעייות שעוד לא הצלחנו לפתור. בכל זאת אני מקווה שכמוני אתם תראו את היופי בנסיון הלא פוסק של המין שלנו להבין את היקום גם כשכל הסיכויים נגדנו.</p>
+
+                </div>
+                <div class="article-footer">
+                    <div class="reading-time">קריאה של 8 דקות</div>
+                    <div class="share-buttons">
+                        <a href="#" class="share-btn" onclick="copyLink()">העתקת קישור</a>
+                        <a href="mailto:raz.ganor@gmail.com" class="share-btn">שליחת שאלה</a>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; 2024 רז גנאור. כל הזכויות שמורות.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const currentTheme = html.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                html.setAttribute('data-theme', 'light');
+                themeIcon.textContent = '🌙';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+            }
+        }
+
+        // Initialize theme on page load
+        function initTheme() {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (prefersDark) {
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+            } else {
+                html.setAttribute('data-theme', 'light');
+                themeIcon.textContent = '🌙';
+            }
+        }
+
+        // Share functionality
+        function shareOnTwitter() {
+            const url = window.location.href;
+            const text = 'מדריך להבנת ניסוי שתי הסדקים - כדאי לקרוא!';
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        }
+
+        function shareOnLinkedIn() {
+            const url = window.location.href;
+            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('הקישור הועתק ללוח!');
+            });
+        }
+
+        // Initialize theme when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+        });
+    </script>
+</body>
+</html>
