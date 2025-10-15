@@ -47,6 +47,11 @@
             box-sizing: border-box;
         }
 
+        /* Smooth scroll behavior */
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             font-family: 'Heebo', 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.7;
@@ -54,6 +59,43 @@
             background-color: var(--bg-primary);
             transition: background-color 0.3s ease, color 0.3s ease;
             direction: rtl;
+        }
+
+        /* Selection styling */
+        ::selection {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        /* Reading progress bar */
+        .reading-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-color), #f97316);
+            z-index: 1000;
+            transition: width 0.1s ease;
         }
 
         .container {
@@ -69,7 +111,12 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Header shadow on scroll */
+        header.scrolled {
+            box-shadow: 0 4px 12px var(--shadow-color);
         }
 
         .header-content {
@@ -95,6 +142,18 @@
             color: var(--accent-color);
         }
 
+        /* Back link arrow animation */
+        .back-link::before {
+            content: '→';
+            display: inline-block;
+            margin-left: 5px;
+            transition: transform 0.3s ease;
+        }
+
+        .back-link:hover::before {
+            transform: translateX(-5px);
+        }
+
         .theme-toggle {
             background: none;
             border: 1px solid var(--border-color);
@@ -114,6 +173,20 @@
             color: var(--text-primary);
         }
 
+        /* Pulse animation for theme toggle */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .theme-toggle:active {
+            animation: pulse 0.3s ease;
+        }
+
         .logo {
             font-size: 1.5rem;
             font-weight: 600;
@@ -126,6 +199,18 @@
             padding: 3rem 0;
         }
 
+        /* Fade in animation for article content */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .article {
             background: var(--bg-secondary);
             border-radius: 12px;
@@ -134,6 +219,7 @@
             border: 1px solid var(--border-color);
             transition: background-color 0.3s ease, border-color 0.3s ease;
             margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out;
         }
 
         .article-header {
@@ -142,18 +228,36 @@
             border-bottom: 1px solid var(--border-color);
         }
 
+        /* Gradient text for article title */
         .article-title {
             font-size: 2.5rem;
             font-weight: 700;
-            color: var(--text-primary);
             margin-bottom: 1rem;
             line-height: 1.2;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Typewriter effect for meta information */
+        @keyframes typewriter {
+            from {
+                width: 0;
+            }
+            to {
+                width: 100%;
+            }
         }
 
         .article-meta {
             color: var(--text-muted);
             font-size: 1rem;
             margin-bottom: 1rem;
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typewriter 2s steps(40) 0.5s forwards;
+            width: 0;
         }
 
         .article-tags {
@@ -162,6 +266,7 @@
             flex-wrap: wrap;
         }
 
+        /* Animated gradient background for tags */
         .tag {
             background: var(--tag-bg);
             color: var(--text-secondary);
@@ -170,6 +275,23 @@
             font-size: 0.8rem;
             font-weight: 500;
             transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tag::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(43, 108, 176, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .tag:hover::before {
+            left: 100%;
         }
 
         .article-content {
@@ -194,16 +316,29 @@
         }
 
         .article-content p {
-            margin-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
             color: var(--text-secondary);
         }
 
+        /* Highlight effect for links */
         .article-content a {
             color: var(--accent-color);
             text-decoration: none;
             font-weight: 500;
             border-bottom: 1px solid transparent;
             transition: border-color 0.2s ease;
+            position: relative;
+        }
+
+        .article-content a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            right: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent-color);
+            transition: width 0.3s ease;
         }
 
         .article-content a:hover {
@@ -211,16 +346,29 @@
             border-bottom-color: var(--accent-hover);
         }
 
+        .article-content a:hover::after {
+            width: 100%;
+        }
+
         .article-content ul, .article-content ol {
             margin: 1.5rem 0;
             padding-right: 2rem;
         }
 
+        /* List item hover effect */
         .article-content li {
             margin-bottom: 0.5rem;
             color: var(--text-secondary);
+            transition: transform 0.2s ease, color 0.2s ease;
+            padding-right: 0.5rem;
         }
 
+        .article-content li:hover {
+            transform: translateX(-5px);
+            color: var(--accent-color);
+        }
+
+        /* Blockquote accent animation */
         .article-content blockquote {
             background: var(--quote-bg);
             border-right: 4px solid var(--accent-color);
@@ -229,6 +377,18 @@
             border-radius: 8px 0 0 8px;
             font-style: italic;
             color: var(--text-secondary);
+            position: relative;
+        }
+
+        .article-content blockquote::before {
+            content: '"';
+            position: absolute;
+            top: -10px;
+            right: 10px;
+            font-size: 4rem;
+            color: var(--accent-color);
+            opacity: 0.2;
+            font-family: Georgia, serif;
         }
 
         .article-content code {
@@ -251,6 +411,13 @@
             margin: 1.5rem 0;
             border: 1px solid var(--border-color);
             direction: ltr;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Glowing border for code blocks */
+        .article-content pre:hover {
+            box-shadow: 0 0 20px rgba(43, 108, 176, 0.3);
+            border-color: var(--accent-color);
         }
 
         .article-content pre code {
@@ -260,6 +427,16 @@
             font-size: 0.9rem;
         }
 
+        /* Floating animation for images */
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
         .article-content img {
             max-width: 100%;
             height: auto;
@@ -267,11 +444,13 @@
             margin: 2rem 0;
             box-shadow: 0 4px 12px var(--shadow-color);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: float 6s ease-in-out infinite;
         }
 
         .article-content img:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px var(--shadow-hover);
+            animation: none;
         }
 
         .article-footer {
@@ -290,6 +469,7 @@
             gap: 1rem;
         }
 
+        /* Card flip effect & ripple for share buttons */
         .share-btn {
             padding: 0.5rem 1rem;
             background: var(--bg-primary);
@@ -299,6 +479,28 @@
             text-decoration: none;
             font-size: 0.9rem;
             transition: all 0.2s ease;
+            perspective: 1000px;
+            transform-style: preserve-3d;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .share-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .share-btn:active::before {
+            width: 300px;
+            height: 300px;
         }
 
         .share-btn:hover {
@@ -306,6 +508,10 @@
             color: white;
             border-color: var(--accent-color);
             transform: translateY(-1px);
+        }
+
+        .share-btn:active {
+            transform: rotateY(10deg) translateY(-1px);
         }
 
         .reading-time {
@@ -326,14 +532,40 @@
             color: var(--text-muted);
         }
 
+        /* Footer link hover effect */
+        .footer-content p {
+            transition: letter-spacing 0.3s ease;
+        }
+
+        .footer-content:hover p {
+            letter-spacing: 1px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 0 15px;
             }
 
             .header-content {
-                flex-direction: column;
+                flex-direction: row;
                 gap: 1rem;
+            }
+
+            .nav-section {
+                gap: 0.5rem;
+            }
+
+            .back-link {
+                font-size: 0.9rem;
+            }
+
+            .logo {
+                font-size: 1.2rem;
+            }
+
+            .theme-toggle {
+                width: 36px;
+                height: 36px;
             }
 
             .article {
@@ -360,12 +592,13 @@
     </style>
 </head>
 <body>
+    <div class="reading-progress" id="reading-progress"></div>
     <header>
         <div class="container">
             <div class="header-content">
                 <a href="#" class="logo">רז גנאור</a>
                 <div class="nav-section">
-                    <a href="https://razg.xyz" class="back-link">→ חזרה לבלוג</a>
+                    <a href="https://razg.xyz" class="back-link">חזרה לבלוג</a>
                     <button class="theme-toggle" onclick="toggleTheme()" aria-label="החלף מצב כהה">
                         <span id="theme-icon">🌙</span>
                     </button>
@@ -470,7 +703,7 @@
                     <div class="reading-time">קריאה של 8 דקות</div>
                     <div class="share-buttons">
                         <a href="#" class="share-btn" onclick="copyLink()">העתקת קישור</a>
-                        <a href="mailto:raz.ganor@gmail.com" class="share-btn">שליחת שאלה</a>
+                        <a href="mailto:raz.ganor9gmail.com" class="share-btn">שליחת שאלה</a>
                     </div>
                 </div>
             </article>
@@ -515,7 +748,32 @@
                 themeIcon.textContent = '🌙';
             }
         }
+        function initReadingProgress() {
+            const progressBar = document.getElementById('reading-progress');
+            
+            window.addEventListener('scroll', () => {
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollPercentage = (scrollTop / (documentHeight - windowHeight)) * 100;
+                
+                progressBar.style.width = scrollPercentage + '%';
+            });
+        }
 
+        // Header shadow on scroll
+        function initScrollHeader() {
+            const header = document.getElementById('header');
+            
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 50) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+            });
+        }
+        
         // Share functionality
         function shareOnTwitter() {
             const url = window.location.href;
@@ -537,6 +795,8 @@
         // Initialize theme when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             initTheme();
+            initReadingProgress();
+            initScrollHeader();
         });
     </script>
 </body>
