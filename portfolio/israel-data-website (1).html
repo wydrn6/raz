@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>מפת חום חללי צהל</title>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="logo.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        /* Reset and base styles */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            position: fixed; /* Prevents bounce on iOS */
+        }
+
+        /* Navigation styles */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            text-decoration: none;
+        }
+
+        .navbar-links {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .navbar-links a {
+            color: #333;
+            text-decoration: none;
+            padding: 5px 8px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #333;
+            padding: 5px;
+            margin-left: auto;
+        }
+
+        /* Mobile navigation */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1rem;
+                
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .navbar-links {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background: rgba(255, 255, 255, 0.95);
+                padding: 10px;
+                flex-direction: column;
+                gap: 5px;
+                display: none;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+
+            .navbar-links.active {
+                display: flex;
+            }
+
+            .navbar-links a {
+                padding: 10px;
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        /* Map container */
+        #map {
+            height: 100vh;
+            width: 100vw;
+            margin-top: 60px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            right: 0;
+            width: 300px;
+            height: calc(100vh - 60px);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 900;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: 50vh;
+                top: auto;
+                bottom: 0;
+                transform: translateY(100%);
+            }
+
+            .sidebar.active {
+                transform: translateY(0) !important;
+            }
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            z-index: 901;
+            background: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-toggle {
+                bottom: 20px;
+                top: auto;
+                right: 20px;
+                padding: 12px;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        /* Info box styles */
+        .info-box {
+            padding: 6px 8px;
+            background: white;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+
+        /* Popup styles */
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: rgba(255,255,255,0.9);
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .popup-link {
+            color: #0078A8;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 8px 0;
+            display: inline-block; /* Better touch target */
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px; /* Increased for better touch targets */
+            padding: 5px 0;
+        }
+
+        .legend-color {
+            width: 24px; /* Larger for touch */
+            height: 24px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+
+        /* Touch-friendly buttons */
+        button {
+            min-height: 44px; /* iOS minimum touch target size */
+            min-width: 44px;
+        }
+
+        /*Loading indicator
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 2000;
+            display: none;
+        }*/
+    </style>
+</head>
+<body>
+    <!-- Loading indicator -->
+    <div class="loading" id="loading">Loading map...</div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="#" class="navbar-brand">חללי חרבות ברזל</a>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-links" id="navLinks">
+            <a href="#" onclick="showAbout()">About</a>
+            <a href="all_records.txt" onclick="showData()">Data</a>
+            <a href="https://github.com/wydrn6/raz" target="_blank">GitHub</a>
+        </div>
+    </nav>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Sidebar Toggle -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-info"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <h2>מידע</h2>
+        <div class="legend">
+            <h3>משמעות הצבעים</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: red;"></div>
+                <span>20+ חללים</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: yellow;"></div>
+                <span>6-13 חללים</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: lime;"></div>
+                <span>3-5 חללים</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: cyan;"></div>
+                <span>2 חללים</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: blue;"></div>
+                <span>חלל אחד</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+    
+    <script>
+        // Show loading indicator
+        document.getElementById('loading').style.display = 'block';
+
+        // Sample data points - Replace with your actual data
+        const points = [
+        [31.4317698, 34.8857795, 2, "שומריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%95%D7%9E%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.8988391, 35.0156304, 13, "מודיעין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%93%D7%99%D7%A2%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.3345015, 35.012351, 2, "בת חפר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%AA%20%D7%97%D7%A4%D7%A8&unit=&startDate=&endDate="],
+            [32.6480601, 35.0943545, 5, "יקנעם עילית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A7%D7%A0%D7%A2%D7%9D%20%D7%A2%D7%99%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [33.0275858, 35.1834948, 1, "נווה זיו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%95%D7%95%D7%94%20%D7%96%D7%99%D7%95&unit=&startDate=&endDate="],
+            [31.2457442, 34.7925181, 14, "באר שבע", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%90%D7%A8%20%D7%A9%D7%91%D7%A2&unit=&startDate=&endDate="],
+            [31.7309768, 34.8352311, 2, "כפר מנחם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%9E%D7%A0%D7%97%D7%9D&unit=&startDate=&endDate="],
+            [31.7151995, 35.0989445, 3, "צור הדסה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%95%D7%A8%20%D7%94%D7%93%D7%A1%D7%94&unit=&startDate=&endDate="],
+            [31.7957411, 34.6488884, 14, "אשדוד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%A9%D7%93%D7%95%D7%93&unit=&startDate=&endDate="],
+            [32.0729606, 34.8113279, 5, "גבעתיים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%D7%99%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.7399419, 34.6318163, 2, "ניצן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A6%D7%9F&unit=&startDate=&endDate="],
+            [32.1466075, 34.9843952, 1, "נירית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A8%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.2201627, 34.993953, 3, "כוכב יאיר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%95%D7%9B%D7%91%20%D7%99%D7%90%D7%99%D7%A8&unit=&startDate=&endDate="],
+            [31.9393963, 35.1323035, 6, "טלמון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%98%D7%9C%D7%9E%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.6075587, 35.2890861, 8, "עפולה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%A4%D7%95%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [32.1396795, 34.8358517, 3, "רמת השרון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%9E%D7%AA%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [30.6119687, 34.8012169, 2, "מצפה רמון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A6%D7%A4%D7%94%20%D7%A8%D7%9E%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.0591691, 34.8594303, 4, "קריית אונו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%90%D7%95%D7%A0%D7%95&unit=&startDate=&endDate="],
+            [32.0852997, 34.7818064, 23, "תל אביב-יפו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91-%D7%99%D7%A4%D7%95&unit=&startDate=&endDate="],
+            [32.174175, 35.307608, 1, "איתמר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%99%D7%AA%D7%9E%D7%A8&unit=&startDate=&endDate="],
+            [32.3875165, 34.9257315, 1, "חגלה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%92%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [32.980597, 35.0832938, 1, "שבי ציון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%91%D7%99%20%D7%A6%D7%99%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.2119285, 35.1510768, 2, "קדומים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%93%D7%95%D7%9E%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.9916349, 34.933807, 1, "בית עריף", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%A2%D7%A8%D7%99%D7%A3&unit=&startDate=&endDate="],
+            [31.3273849, 34.5602722, 1, "פטיש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%98%D7%99%D7%A9&unit=&startDate=&endDate="],
+            [32.1802141, 34.9152516, 7, "כפר סבא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%A1%D7%91%D7%90&unit=&startDate=&endDate="],
+            [32.1874797, 34.8676924, 12, "רעננה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%A2%D7%A0%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [30.8060345, 35.2994035, 1, "עידן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%93%D7%9F&unit=&startDate=&endDate="],
+            [31.6031494, 34.7779274, 4, "קריית גת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%92%D7%AA&unit=&startDate=&endDate="],
+            [32.475041, 34.9761087, 6, "פרדס חנה-כרכור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%A8%D7%93%D7%A1%20%D7%97%D7%A0%D7%94-%D7%9B%D7%A8%D7%9B%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [31.9295577, 34.7990609, 5, "נס ציונה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%A1%20%D7%A6%D7%99%D7%95%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [32.1060817, 35.1851368, 2, "אריאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%A8%D7%99%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [33.0215976, 35.5759521, 1, "איילת השחר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%99%D7%99%D7%9C%D7%AA%20%D7%94%D7%A9%D7%97%D7%A8&unit=&startDate=&endDate="],
+            [31.6770338, 34.9357965, 1, "שריגים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%A8%D7%99%D7%92%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.0946237, 34.9610865, 11, "ראש העין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%90%D7%A9%20%D7%94%D7%A2%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.0189905, 34.8267021, 1, "גנות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A0%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [32.8074348, 35.1172559, 3, "קריית אתא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%90%D7%AA%D7%90&unit=&startDate=&endDate="],
+            [31.6620949, 35.1549651, 2, "אפרת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%A4%D7%A8%D7%AA&unit=&startDate=&endDate="],
+            [31.7884719, 35.2187944, 67, "ירושלים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A8%D7%95%D7%A9%D7%9C%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.8155487, 35.3943217, 3, "מצפה יריחו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A6%D7%A4%D7%94%20%D7%99%D7%A8%D7%99%D7%97%D7%95&unit=&startDate=&endDate="],
+            [31.8117747, 34.7803882, 5, "גדרה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%93%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [31.3067921, 34.61822, 7, "אופקים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%95%D7%A4%D7%A7%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.5312634, 34.5942807, 4, "שדרות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%93%D7%A8%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [31.9522788, 34.921944, 1, "בן שמן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%9F%20%D7%A9%D7%9E%D7%9F&unit=&startDate=&endDate="],
+            [32.0877639, 34.8859985, 16, "פתח תקווה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%AA%D7%97%20%D7%AA%D7%A7%D7%95%D7%95%D7%94&unit=&startDate=&endDate="],
+            [31.8952532, 34.8105616, 15, "רחובות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%97%D7%95%D7%91%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [32.8366858, 35.0893343, 4, "קריית ביאליק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%91%D7%99%D7%90%D7%9C%D7%99%D7%A7&unit=&startDate=&endDate="],
+            [31.0686612, 35.0366482, 8, "דימונה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%93%D7%99%D7%9E%D7%95%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [32.4079533, 34.9248732, 2, "אליכין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%9C%D7%99%D7%9B%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.7509558, 35.1013589, 1, "רכסים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%9B%D7%A1%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.0686867, 34.8246812, 15, "רמת גן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%9E%D7%AA%20%D7%92%D7%9F&unit=&startDate=&endDate="],
+            [31.4832232, 34.6000858, 1, "יכיני", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%9B%D7%99%D7%A0%D7%99&unit=&startDate=&endDate="],
+            [32.1499496, 34.8851247, 3, "הוד השרון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.2764459, 34.9125436, 3, "קדימה צורן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%93%D7%99%D7%9E%D7%94%20%D7%A6%D7%95%D7%A8%D7%9F&unit=&startDate=&endDate="],
+            [31.4521295, 34.5137154, 1, "עלומים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%9C%D7%95%D7%9E%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.9085744, 35.0069297, 13, "מודיעין-מכבים-רעות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%93%D7%99%D7%A2%D7%99%D7%9F-%D7%9E%D7%9B%D7%91%D7%99%D7%9D-%D7%A8%D7%A2%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [31.9489012, 34.8884857, 3, "לוד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9C%D7%95%D7%93&unit=&startDate=&endDate="],
+            [32.6479447, 35.3505185, 1, "דברת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%93%D7%91%D7%A8%D7%AA&unit=&startDate=&endDate="],
+            [32.9148414, 35.0822866, 3, "עכו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%9B%D7%95&unit=&startDate=&endDate="],
+            [31.9968113, 34.9464444, 5, "שוהם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%95%D7%94%D7%9D&unit=&startDate=&endDate="],
+            [32.9036151, 35.0961117, 1, "עין המפרץ", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%9F%20%D7%94%D7%9E%D7%A4%D7%A8%D7%A5&unit=&startDate=&endDate="],
+            [32.7328247, 35.2472359, 2, "שמשית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%9E%D7%A9%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.573042, 34.9512207, 4, "זכרון יעקב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%96%D7%9B%D7%A8%D7%95%D7%9F%20%D7%99%D7%A2%D7%A7%D7%91&unit=&startDate=&endDate="],
+            [32.8191218, 34.9983856, 20, "חיפה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%99%D7%A4%D7%94&unit=&startDate=&endDate="],
+            [31.6738509, 34.5752428, 10, "אשקלון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.9925649, 35.6843814, 2, "קצרין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A6%D7%A8%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.0331756, 34.8907527, 4, "יהוד-מונוסון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%94%D7%95%D7%93-%D7%9E%D7%95%D7%A0%D7%95%D7%A1%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.3578622, 34.8762757, 2, "גבעת שפירא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%A9%D7%A4%D7%99%D7%A8%D7%90&unit=&startDate=&endDate="],
+            [31.8789547, 35.3062115, 1, "מעלה מכמש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A2%D7%9C%D7%94%20%D7%9E%D7%9B%D7%9E%D7%A9&unit=&startDate=&endDate="],
+            [32.4752337, 34.9771749, 2, "פרדס חנה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%A8%D7%93%D7%A1%20%D7%97%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [31.246415, 34.4032541, 3, "ישע", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A9%D7%A2&unit=&startDate=&endDate="],
+            [31.7730474, 34.8153077, 1, "רבדים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%91%D7%93%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.9792441, 35.1642671, 1, "עמקה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%9E%D7%A7%D7%94&unit=&startDate=&endDate="],
+            [31.785688, 34.791801, 1, "גני טל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A0%D7%99%20%D7%98%D7%9C&unit=&startDate=&endDate="],
+            [32.8268051, 35.2328758, 3, "מורשת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%A8%D7%A9%D7%AA&unit=&startDate=&endDate="],
+            [32.9847231, 35.2513938, 2, "יאנוח ג'ת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%90%D7%A0%D7%95%D7%97%20%D7%92%27%D7%AA&unit=&startDate=&endDate="],
+            [31.7298209, 35.0726527, 1, "בר-גיורא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A8-%D7%92%D7%99%D7%95%D7%A8%D7%90&unit=&startDate=&endDate="],
+            [32.3137219, 34.8667577, 11, "נתניה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%AA%D7%A0%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.2378574, 34.3577888, 5, "ניר יצחק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A8%20%D7%99%D7%A6%D7%97%D7%A7&unit=&startDate=&endDate="],
+            [31.2417561, 34.4072666, 2, "מבטחים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%91%D7%98%D7%97%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.4967519, 35.4973022, 2, "בית שאן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%A9%D7%90%D7%9F&unit=&startDate=&endDate="],
+            [32.1457496, 35.1049952, 1, "חוות יאיר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%95%D7%AA%20%D7%99%D7%90%D7%99%D7%A8&unit=&startDate=&endDate="],
+            [31.5277619, 35.1191651, 3, "קריית ארבע", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%90%D7%A8%D7%91%D7%A2&unit=&startDate=&endDate="],
+            [32.9159104, 35.293429, 8, "כרמיאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A8%D7%9E%D7%99%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [32.43699, 34.9198258, 9, "חדרה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%93%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [32.0236556, 34.8081066, 1, "אזור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%96%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [31.2277096, 34.2839544, 2, "כרם שלום", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A8%D7%9D%20%D7%A9%D7%9C%D7%95%D7%9D&unit=&startDate=&endDate="],
+            [31.3277011, 34.612047, 1, "פדויים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%93%D7%95%D7%99%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.3756971, 34.9572511, 2, "טנא עומרים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%98%D7%A0%D7%90%20%D7%A2%D7%95%D7%9E%D7%A8%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.819884, 34.7385694, 1, "משגב דב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A9%D7%92%D7%91%20%D7%93%D7%91&unit=&startDate=&endDate="],
+            [31.2008757, 34.8400872, 1, "שגב שלום", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%92%D7%91%20%D7%A9%D7%9C%D7%95%D7%9D&unit=&startDate=&endDate="],
+            [31.7934936, 35.1565626, 1, "מוצא עילית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%A6%D7%90%20%D7%A2%D7%99%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [31.1685255, 34.3035802, 4, "שלומית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%9C%D7%95%D7%9E%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [33.01737, 35.3469551, 2, "חורפיש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%A8%D7%A4%D7%99%D7%A9&unit=&startDate=&endDate="],
+            [32.6460182, 35.1930067, 1, "כפר ברוך", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%91%D7%A8%D7%95%D7%9A&unit=&startDate=&endDate="],
+            [31.970434, 34.7921698, 10, "ראשון לציון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%90%D7%A9%D7%95%D7%9F%20%D7%9C%D7%A6%D7%99%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.9324487, 35.0433428, 1, "מודיעין עילית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%93%D7%99%D7%A2%D7%99%D7%9F%20%D7%A2%D7%99%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [33.1869061, 35.6245075, 2, "שדה נחמיה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%93%D7%94%20%D7%A0%D7%97%D7%9E%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.7389375, 34.8071851, 1, "כפר הריף", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%94%D7%A8%D7%99%22%D7%A3&unit=&startDate=&endDate="],
+            [32.7585699, 35.2932906, 2, "הושעיה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%94%D7%95%D7%A9%D7%A2%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.8653848, 34.8292166, 1, "קריית עקרון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A2%D7%A7%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.8675206, 34.8004909, 1, "גבעת ברנר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%91%D7%A8%D7%A0%D7%A8&unit=&startDate=&endDate="],
+            [32.7208483, 35.2448953, 1, "גבעת אלה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%90%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [32.7892439, 35.5213861, 4, "טבריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%98%D7%91%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.0159989, 34.7859564, 6, "חולון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%9C%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.6549203, 35.1267718, 3, "אלון שבות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%9C%D7%95%D7%9F%20%D7%A9%D7%91%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [31.8138222, 34.7190625, 1, "קבוצת יבנה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%91%D7%95%D7%A6%D7%AA%20%D7%99%D7%91%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [32.9113891, 35.3612558, 1, "כמון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%9E%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.4389001, 35.0288729, 3, "עתניאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%AA%D7%A0%D7%99%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [32.1918302, 34.923101, 2, "צופית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%95%D7%A4%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.0695012, 35.2624802, 8, "עלי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%9C%D7%99&unit=&startDate=&endDate="],
+            [31.8891357, 34.9328059, 1, "כפר שמואל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%A9%D7%9E%D7%95%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.329171, 34.6516508, 2, "גילת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%99%D7%9C%D7%AA&unit=&startDate=&endDate="],
+            [30.9100139, 34.4310272, 1, "כמהין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%9E%D7%94%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [31.7527467, 35.1534987, 1, "אורה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%95%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [31.7705643, 35.2987457, 5, "מעלה אדומים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A2%D7%9C%D7%94%20%D7%90%D7%93%D7%95%D7%9E%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.4724074, 34.4982114, 2, "נחל עוז", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%97%D7%9C%20%D7%A2%D7%95%D7%96&unit=&startDate=&endDate="],
+            [33.1321192, 35.7773161, 1, "מרום גולן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A8%D7%95%D7%9D%20%D7%92%D7%95%D7%9C%D7%9F&unit=&startDate=&endDate="],
+            [32.6418437, 35.3387534, 1, "אחוזת ברק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%97%D7%95%D7%96%D7%AA%20%D7%91%D7%A8%D7%A7&unit=&startDate=&endDate="],
+            [31.9753923, 34.891423, 1, "זיתן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%96%D7%99%D7%AA%D7%9F&unit=&startDate=&endDate="],
+            [33.0394679, 35.1109814, 1, "גשר הזיו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A9%D7%A8%20%D7%94%D7%96%D7%99%D7%95&unit=&startDate=&endDate="],
+            [31.7627391, 34.9686245, 1, "צרעה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%A8%D7%A2%D7%94&unit=&startDate=&endDate="],
+            [31.626019, 34.60964, 2, "גיאה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%99%D7%90%D7%94&unit=&startDate=&endDate="],
+            [31.2972468, 34.9379061, 1, "חורה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [31.4492727, 34.6547505, 1, "מבועים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%91%D7%95%D7%A2%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.4241619, 34.4911156, 8, "בארי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%90%D7%A8%D7%99&unit=&startDate=&endDate="],
+            [32.2536471, 34.9185387, 3, "תל מונד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%AA%D7%9C%20%D7%9E%D7%95%D7%A0%D7%93&unit=&startDate=&endDate="],
+            [32.6899758, 35.4198555, 2, "כפר תבור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%AA%D7%91%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [32.0188526, 34.943779, 1, "ברקת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A8%D7%A7%D7%AA&unit=&startDate=&endDate="],
+            [33.2074733, 35.5707828, 3, "קריית שמונה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%9E%D7%95%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [30.5586234, 35.1801426, 3, "צופר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%95%D7%A4%D7%A8&unit=&startDate=&endDate="],
+            [32.043333, 34.931667, 1, "רינתיה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%99%D7%A0%D7%AA%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.3741608, 34.3994488, 1, "כיסופים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%99%D7%A1%D7%95%D7%A4%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.8315803, 35.29654, 1, "עלמון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%9C%D7%9E%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.2365143, 34.3426422, 2, "סופה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A1%D7%95%D7%A4%D7%94&unit=&startDate=&endDate="],
+            [32.423437, 35.119069, 1, "חרמש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%A8%D7%9E%D7%A9&unit=&startDate=&endDate="],
+            [32.3918515, 34.931902, 1, "גבעת חיים (מאוחד)", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%97%D7%99%D7%99%D7%9D%20%28%D7%9E%D7%90%D7%95%D7%97%D7%93%29&unit=&startDate=&endDate="],
+            [31.556451, 34.580348, 1, "ארז", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%A8%D7%96&unit=&startDate=&endDate="],
+            [31.746214, 34.9886825, 11, "בית שמש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%A9%D7%9E%D7%A9&unit=&startDate=&endDate="],
+            [32.0154565, 34.7505283, 4, "בת ים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%AA%20%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.7493317, 35.4226101, 1, "שדה אילן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%93%D7%94%20%D7%90%D7%99%D7%9C%D7%9F&unit=&startDate=&endDate="],
+            [31.6597433, 34.9956875, 1, "אדרת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%93%D7%A8%D7%AA&unit=&startDate=&endDate="],
+            [32.076372, 34.8520142, 2, "גבעת שמואל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%A9%D7%9E%D7%95%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.2990681, 34.4289248, 2, "מגן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%92%D7%9F&unit=&startDate=&endDate="],
+            [31.4833351, 34.5333225, 12, "כפר עזה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%A2%D7%96%D7%94&unit=&startDate=&endDate="],
+            [32.1618975, 35.1361352, 1, "עמנואל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%9E%D7%A0%D7%95%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.8093796, 34.9490776, 1, "הראל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%94%D7%A8%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.2318728, 34.3265102, 2, "חולית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.1164532, 35.1126872, 1, "קריית נטפים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A0%D7%98%D7%A4%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.7346866, 34.7708779, 1, "ערוגות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%A8%D7%95%D7%92%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [32.9646301, 35.502451, 2, "צפת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%A4%D7%AA&unit=&startDate=&endDate="],
+            [32.8045765, 35.1723866, 1, "שפרעם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%A4%D7%A8%D7%A2%D7%9D&unit=&startDate=&endDate="],
+            [31.8422092, 34.8560446, 3, "מזכרת בתיה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%96%D7%9B%D7%A8%D7%AA%20%D7%91%D7%AA%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.5090151, 34.9195677, 1, "אור עקיבא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%95%D7%A8%20%D7%A2%D7%A7%D7%99%D7%91%D7%90&unit=&startDate=&endDate="],
+            [30.9328457, 34.4070405, 1, "באר מילכה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%90%D7%A8%20%D7%9E%D7%99%D7%9C%D7%9B%D7%94&unit=&startDate=&endDate="],
+            [31.5716799, 34.5395488, 3, "נתיב העשרה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%AA%D7%99%D7%91%20%D7%94%D7%A2%D7%A9%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [32.887317, 35.412302, 1, "מע'אר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A2%27%D7%90%D7%A8&unit=&startDate=&endDate="],
+            [32.5202891, 34.9435862, 1, "בנימינה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [31.3513501, 34.400966, 1, "עין השלושה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%9F%20%D7%94%D7%A9%D7%9C%D7%95%D7%A9%D7%94&unit=&startDate=&endDate="],
+            [32.8467455, 35.0701711, 1, "קריית ים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.9682459, 34.9337333, 1, "חדיד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%93%D7%99%D7%93&unit=&startDate=&endDate="],
+            [32.1656255, 34.8469023, 8, "הרצליה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%94%D7%A8%D7%A6%D7%9C%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.1973859, 34.9483587, 1, "ניר אליהו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A8%20%D7%90%D7%9C%D7%99%D7%94%D7%95&unit=&startDate=&endDate="],
+            [32.845525, 35.793756, 1, "חספין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%A1%D7%A4%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.1531458, 34.9683081, 1, "ירחיב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A8%D7%97%D7%99%D7%91&unit=&startDate=&endDate="],
+            [32.7428565, 35.0781325, 1, "יגור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%92%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [31.8768863, 34.7382974, 2, "יבנה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%91%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [32.1309209, 34.9919607, 4, "אורנית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%95%D7%A8%D7%A0%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [31.96396, 35.04853, 1, "נילי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%9C%22%D7%99&unit=&startDate=&endDate="],
+            [30.9376878, 34.8713411, 1, "חוות נחל הרועה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%95%D7%AA%20%D7%A0%D7%97%D7%9C%20%D7%94%D7%A8%D7%95%D7%A2%D7%94&unit=&startDate=&endDate="],
+            [32.781891, 35.1736274, 1, "עדי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%93%D7%99&unit=&startDate=&endDate="],
+            [32.284481, 35.126418, 1, "עינב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%A0%D7%91&unit=&startDate=&endDate="],
+            [32.4613042, 35.0496266, 3, "חריש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%A8%D7%99%D7%A9&unit=&startDate=&endDate="],
+            [32.950674, 35.3121922, 1, "הר חלוץ", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%94%D7%A8%20%D7%97%D7%9C%D7%95%D7%A5&unit=&startDate=&endDate="],
+            [32.1722441, 35.0978163, 7, "קרני שומרון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%A0%D7%99%20%D7%A9%D7%95%D7%9E%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.3472735, 35.5326341, 2, "שדמות מחולה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%93%D7%9E%D7%95%D7%AA%20%D7%9E%D7%97%D7%95%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [32.0552166, 35.2994873, 1, "שילה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%99%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [32.4002771, 34.9330496, 1, "גבעת חיים (איחוד)", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%97%D7%99%D7%99%D7%9D%20%28%D7%90%D7%99%D7%97%D7%95%D7%93%29&unit=&startDate=&endDate="],
+            [32.9574173, 35.4579027, 1, "כפר שמאי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%A9%D7%9E%D7%90%D7%99&unit=&startDate=&endDate="],
+            [32.4886297, 35.1016891, 2, "קציר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A6%D7%99%D7%A8&unit=&startDate=&endDate="],
+            [32.832269, 35.7831891, 1, "נוב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%95%D7%91&unit=&startDate=&endDate="],
+            [32.24124, 34.9983819, 2, "צור יצחק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%95%D7%A8%20%D7%99%D7%A6%D7%97%D7%A7&unit=&startDate=&endDate="],
+            [32.6642603, 35.2569439, 1, "גניגר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A0%D7%99%D7%92%D7%A8&unit=&startDate=&endDate="],
+            [31.6092242, 35.1008772, 1, "כרמי צור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A8%D7%9E%D7%99%20%D7%A6%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [33.192241, 35.748947, 1, "אודם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%95%D7%93%D7%9D&unit=&startDate=&endDate="],
+            [31.6940539, 34.7200879, 1, "עין צורים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%9F%20%D7%A6%D7%95%D7%A8%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.058864, 35.273236, 1, "גבעות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [31.7469145, 34.8225068, 1, "קריית מלאכי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%9E%D7%9C%D7%90%D7%9B%D7%99&unit=&startDate=&endDate="],
+            [32.1995547, 34.8244371, 1, "רשפון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%A9%D7%A4%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.4834453, 35.1604264, 2, "טל מנשה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%98%D7%9C%20%D7%9E%D7%A0%D7%A9%D7%94&unit=&startDate=&endDate="],
+            [32.350828, 35.018641, 1, "קיבוץ בחן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%91%D7%97%D7%9F&unit=&startDate=&endDate="],
+            [32.1730798, 35.0158426, 1, "אלפי מנשה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%9C%D7%A4%D7%99%20%D7%9E%D7%A0%D7%A9%D7%94&unit=&startDate=&endDate="],
+            [32.964282, 35.378468, 2, "בית ג'ן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%92%27%D7%9F&unit=&startDate=&endDate="],
+            [32.9772377, 35.3339889, 1, "פקיעין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%A7%D7%99%D7%A2%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.2978073, 34.9135462, 1, "צור משה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%95%D7%A8%20%D7%9E%D7%A9%D7%94&unit=&startDate=&endDate="],
+            [32.18464, 34.9354994, 1, "כפר אזר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%90%D7%96%22%D7%A8&unit=&startDate=&endDate="],
+            [33.0573811, 35.6030157, 2, "יסוד המעלה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A1%D7%95%D7%93%20%D7%94%D7%9E%D7%A2%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [32.7099293, 35.310656, 2, "נוף הגליל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%95%D7%A3%20%D7%94%D7%92%D7%9C%D7%99%D7%9C&unit=&startDate=&endDate="],
+            [31.9535235, 35.2604673, 2, "עפרה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%A4%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [31.3703233, 34.8136886, 2, "להבים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9C%D7%94%D7%91%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.061582, 35.052162, 1, "פדואל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%93%D7%95%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.6397455, 35.1425548, 1, "מגדל עוז", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%92%D7%93%D7%9C%20%D7%A2%D7%95%D7%96&unit=&startDate=&endDate="],
+            [32.8547224, 35.2642924, 1, "רקפת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%A7%D7%A4%D7%AA&unit=&startDate=&endDate="],
+            [31.975811, 34.9550835, 1, "בית נחמיה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%A0%D7%97%D7%9E%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.519974, 34.776713, 1, "חוות פיליפ", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%95%D7%95%D7%AA%20%D7%A4%D7%99%D7%9C%D7%99%D7%A4&unit=&startDate=&endDate="],
+            [29.5569348, 34.9497949, 4, "אילת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%99%D7%9C%D7%AA&unit=&startDate=&endDate="],
+            [31.373722, 35.043806, 1, "עשהאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%A9%D7%94%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.789966, 35.461019, 1, "אלמוג", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%9C%D7%9E%D7%95%D7%92&unit=&startDate=&endDate="],
+            [31.8150988, 34.7976591, 1, "קדרון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%93%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.6974241, 35.1417499, 1, "שדה יעקב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%93%D7%94%20%D7%99%D7%A2%D7%A7%D7%91&unit=&startDate=&endDate="],
+            [32.6399529, 35.1142359, 1, "קיבוץ חצור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%97%D7%A6%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [32.473269, 35.503364, 1, "קיבוץ עין הנציב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%A2%D7%99%D7%9F%20%D7%94%D7%A0%D7%A6%D7%99%22%D7%91&unit=&startDate=&endDate="],
+            [32.7024925, 35.1652427, 1, "רמת ישי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%9E%D7%AA%20%D7%99%D7%A9%D7%99&unit=&startDate=&endDate="],
+            [33.0157394, 35.2759666, 2, "מעלות-תרשיחא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A2%D7%9C%D7%95%D7%AA-%D7%AA%D7%A8%D7%A9%D7%99%D7%97%D7%90&unit=&startDate=&endDate="],
+            [32.4404, 35.51378, 1, "קיבוץ שדה אליהו", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%A9%D7%93%D7%94%20%D7%90%D7%9C%D7%99%D7%94%D7%95&unit=&startDate=&endDate="],
+            [31.90674, 35.467262, 1, "נעמה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%A2%D7%9E%22%D7%94&unit=&startDate=&endDate="],
+            [31.8329257, 35.3533953, 1, "אלון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%9C%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.392018, 35.114234, 3, "סוסיא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A1%D7%95%D7%A1%D7%99%D7%90&unit=&startDate=&endDate="],
+            [31.9311703, 35.0223882, 1, "חשמונאים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%A9%D7%9E%D7%95%D7%A0%D7%90%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.6954933, 35.4374472, 1, "שדמות דבורה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%93%D7%9E%D7%95%D7%AA%20%D7%93%D7%91%D7%95%D7%A8%D7%94&unit=&startDate=&endDate="],
+            [32.7184192, 35.3954738, 1, "בית קשת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%A7%D7%A9%D7%AA&unit=&startDate=&endDate="],
+            [32.968215, 35.5438245, 1, "ראש פינה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%90%D7%A9%20%D7%A4%D7%99%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [32.314504, 34.9321169, 2, "כפר יונה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%99%D7%95%D7%A0%D7%94&unit=&startDate=&endDate="],
+            [31.9175529, 35.0319405, 1, "לפיד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9C%D7%A4%D7%99%D7%93&unit=&startDate=&endDate="],
+            [33.1286135, 35.5519473, 1, "יפתח", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A4%D7%AA%D7%97&unit=&startDate=&endDate="],
+            [32.4874752, 34.9850386, 2, "משמרות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A9%D7%9E%D7%A8%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [32.151417, 34.9017297, 1, "גני עם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A0%D7%99%20%D7%A2%D7%9D&unit=&startDate=&endDate="],
+            [32.1686097, 35.2337655, 1, "יצהר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A6%D7%94%D7%A8&unit=&startDate=&endDate="],
+            [31.6761931, 35.1428321, 1, "נווה דניאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%95%D7%95%D7%94%20%D7%93%D7%A0%D7%99%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [32.8390531, 35.0803893, 4, "קריית מוצקין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%9E%D7%95%D7%A6%D7%A7%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [31.7023455, 34.6898673, 1, "משואות יצחק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A9%D7%95%D7%90%D7%95%D7%AA%20%D7%99%D7%A6%D7%97%D7%A7&unit=&startDate=&endDate="],
+            [31.8814286, 35.2452887, 1, "כוכב יעקב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%95%D7%9B%D7%91%20%D7%99%D7%A2%D7%A7%D7%91&unit=&startDate=&endDate="],
+            [32.8858202, 35.4062022, 2, "מגאר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%92%D7%90%D7%A8&unit=&startDate=&endDate="],
+            [32.6820586, 35.1522509, 1, "כפר יהושע", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%99%D7%94%D7%95%D7%A9%D7%A2&unit=&startDate=&endDate="],
+            [31.6607284, 35.1414847, 5, "אלעזר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%9C%D7%A2%D7%96%D7%A8&unit=&startDate=&endDate="],
+            [32.7925038, 35.1213847, 1, "רמת יוחנן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%9E%D7%AA%20%D7%99%D7%95%D7%97%D7%A0%D7%9F&unit=&startDate=&endDate="],
+            [33.2474176, 35.5974916, 1, "כפר יובל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%99%D7%95%D7%91%D7%9C&unit=&startDate=&endDate="],
+            [32.0589718, 34.9136499, 1, "נחלים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%97%D7%9C%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.774457, 35.4383706, 1, "גבעת אבני", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%90%D7%91%D7%A0%D7%99&unit=&startDate=&endDate="],
+            [31.8553605, 34.7626358, 1, "בית גמליאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%92%D7%9E%D7%9C%D7%99%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.7227202, 35.1071186, 1, "מבוא ביתר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%91%D7%95%D7%90%20%D7%91%D7%99%D7%AA%D7%A8&unit=&startDate=&endDate="],
+            [31.3933637, 34.7546784, 1, "רהט", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%94%D7%98&unit=&startDate=&endDate="],
+            [31.5174853, 34.9199141, 1, "בני דקלים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A0%D7%99%20%D7%93%D7%A7%D7%9C%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.495587, 35.474174, 1, "קיבוץ מסילות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%9E%D7%A1%D7%99%D7%9C%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [32.8433385, 35.4229425, 1, "מסד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A1%D7%93&unit=&startDate=&endDate="],
+            [31.648682, 35.1149731, 1, "כפר עציון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%A2%D7%A6%D7%99%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.8851173, 35.3001894, 1, "אשחר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%A9%D7%97%D7%A8&unit=&startDate=&endDate="],
+            [31.8318165, 34.7213367, 1, "כפר אביב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%90%D7%91%D7%99%D7%91&unit=&startDate=&endDate="],
+            [32.2632266, 35.1847555, 1, "שבי שומרון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%91%D7%99%20%D7%A9%D7%95%D7%9E%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [30.360014, 35.159451, 1, "פארן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%90%D7%A8%D7%9F&unit=&startDate=&endDate="],
+            [30.9869949, 34.9396772, 1, "ירוחם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A8%D7%95%D7%97%D7%9D&unit=&startDate=&endDate="],
+            [33.0760504, 35.1485842, 1, "שלומי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%9C%D7%95%D7%9E%D7%99&unit=&startDate=&endDate="],
+            [32.3195061, 34.9001402, 2, "גנות הדר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A0%D7%95%D7%AA%20%D7%94%D7%93%D7%A8&unit=&startDate=&endDate="],
+            [31.7978401, 34.8216119, 1, "יד בנימין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%93%20%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [31.8918834, 34.844046, 1, "סתריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A1%D7%AA%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.2629094, 34.9712077, 1, "עזריאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%96%D7%A8%D7%99%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [32.680809, 35.204844, 1, "קיבוץ רמת דוד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%A8%D7%9E%D7%AA%20%D7%93%D7%95%D7%93&unit=&startDate=&endDate="],
+            [31.7545714, 35.3104654, 1, "קידר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%93%D7%A8&unit=&startDate=&endDate="],
+            [32.271117, 34.886023, 1, "אבן יהודה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%91%D7%9F%20%D7%99%D7%94%D7%95%D7%93%D7%94&unit=&startDate=&endDate="],
+            [31.230618, 35.06336, 1, "אבו רובעייה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%91%D7%95%20%D7%A8%D7%95%D7%91%D7%A2%D7%99%D7%99%D7%94&unit=&startDate=&endDate="],
+            [33.2417843, 35.5749608, 1, "כפר גלעדי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%92%D7%9C%D7%A2%D7%93%D7%99&unit=&startDate=&endDate="],
+            [31.9197545, 35.036877, 1, "כפר האורנים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%94%D7%90%D7%95%D7%A8%D7%A0%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [33.006306, 35.0945579, 3, "נהריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%94%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [31.89997, 34.90027, 1, "מושב יד רמבם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%A9%D7%91%20%D7%99%D7%93%20%D7%A8%D7%9E%D7%91%22%D7%9D&unit=&startDate=&endDate="],
+            [31.9929588, 34.8532197, 1, "כפר חבד", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%97%D7%91%22%D7%93&unit=&startDate=&endDate="],
+            [30.8515927, 34.7825759, 1, "מדרשת בן גוריון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%93%D7%A8%D7%A9%D7%AA%20%D7%91%D7%9F%20%D7%92%D7%95%D7%A8%D7%99%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.1191025, 35.1276417, 1, "רבבה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%91%D7%91%D7%94&unit=&startDate=&endDate="],
+            [31.880345, 35.239823, 1, "תל ציון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%AA%D7%9C%20%D7%A6%D7%99%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.505968, 34.9062151, 1, "קיסריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%A1%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.7274275, 35.2133545, 1, "זרזיר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%96%D7%A8%D7%96%D7%99%D7%A8&unit=&startDate=&endDate="],
+            [32.520368, 35.519907, 1, "קיבוץ חמדיה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%97%D7%9E%D7%93%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.0596045, 35.2723357, 1, "גבעת הראל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%AA%20%D7%94%D7%A8%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.898984, 35.22474, 1, "פסגות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%A1%D7%92%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [32.2201774, 34.9935299, 1, "כוכב יאיר-צור יגאל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%95%D7%9B%D7%91%20%D7%99%D7%90%D7%99%D7%A8-%D7%A6%D7%95%D7%A8%20%D7%99%D7%92%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.788823, 34.8000445, 1, "חפץ חיים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%A4%D7%A5%20%D7%97%D7%99%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.9420729, 35.2224417, 2, "בית אל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [31.255017, 34.970639, 1, "סעווה שבט אל אטרש", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A1%D7%A2%D7%95%D7%95%D7%94%20%D7%A9%D7%91%D7%98%20%D7%90%D7%9C%20%D7%90%D7%98%D7%A8%D7%A9&unit=&startDate=&endDate="],
+            [32.778478, 35.701948, 1, "קיבוץ אפיק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%90%D7%A4%D7%99%D7%A7&unit=&startDate=&endDate="],
+            [32.942145, 35.342923, 1, "סאג'ור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A1%D7%90%D7%92%27%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [31.3095982, 34.400815, 1, "ניר עוז", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A8%20%D7%A2%D7%95%D7%96&unit=&startDate=&endDate="],
+            [31.35598, 35.0695, 1, "שני", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A9%D7%A0%D7%99&unit=&startDate=&endDate="],
+            [32.7161543, 35.126841, 1, "קריית טבעון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%98%D7%91%D7%A2%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.8503299, 35.2739808, 2, "גבע בנימין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%20%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.7615, 35.11402, 1, "אבטין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%91%D7%98%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [31.4523959, 35.3848241, 1, "עין גדי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%9F%20%D7%92%D7%93%D7%99&unit=&startDate=&endDate="],
+            [32.001945, 34.8301626, 1, "בית דגן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%93%D7%92%D7%9F&unit=&startDate=&endDate="],
+            [32.0270045, 34.8629898, 1, "אור יהודה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%95%D7%A8%20%D7%99%D7%94%D7%95%D7%93%D7%94&unit=&startDate=&endDate="],
+            [31.7444618, 35.0579576, 1, "נס הרים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%A1%20%D7%94%D7%A8%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.4435485, 34.6091452, 1, "יושיביה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%95%D7%A9%D7%99%D7%91%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.0341444, 35.0501858, 1, "בית אריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%90%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [32.3054855, 35.0048861, 1, "ניצני עוז", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A6%D7%A0%D7%99%20%D7%A2%D7%95%D7%96&unit=&startDate=&endDate="],
+            [32.240436, 34.914884, 1, "חירות", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%99%D7%A8%D7%95%D7%AA&unit=&startDate=&endDate="],
+            [31.8449002, 35.3063702, 1, "בני אדם", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A0%D7%99%20%D7%90%D7%93%D7%9D&unit=&startDate=&endDate="],
+            [32.149747, 35.114662, 1, "יקיר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%99%D7%A7%D7%99%D7%A8&unit=&startDate=&endDate="],
+            [32.5167198, 35.0035515, 1, "בנימינה גבעת עדה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%A0%D7%94%20%D7%92%D7%91%D7%A2%D7%AA%20%D7%A2%D7%93%D7%94&unit=&startDate=&endDate="],
+            [32.9663198, 35.5944243, 1, "טובא זנגריה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%98%D7%95%D7%91%D7%90%20%D7%96%D7%A0%D7%92%D7%A8%D7%99%D7%94&unit=&startDate=&endDate="],
+            [33.1022971, 35.5531168, 1, "רמות נפתלי", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%9E%D7%95%D7%AA%20%D7%A0%D7%A4%D7%AA%D7%9C%D7%99&unit=&startDate=&endDate="],
+            [32.1981952, 35.0096527, 1, "צופים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A6%D7%95%D7%A4%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [31.52935, 35.0938, 1, "חברון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%91%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.6922393, 35.0482785, 1, "דאלית אל-כרמל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%93%D7%90%D7%9C%D7%99%D7%AA%20%D7%90%D7%9C-%D7%9B%D7%A8%D7%9E%D7%9C&unit=&startDate=&endDate="],
+            [31.926199, 35.1351242, 1, "דולב", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%93%D7%95%D7%9C%D7%91&unit=&startDate=&endDate="],
+            [32.102243, 35.257097, 1, "רחלים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A8%D7%97%D7%9C%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.331928, 34.888411, 1, "בית יצחק-שער חפר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%20%D7%99%D7%A6%D7%97%D7%A7-%D7%A9%D7%A2%D7%A8%20%D7%97%D7%A4%D7%A8&unit=&startDate=&endDate="],
+            [32.95119, 35.094502, 2, "קיבוץ שמרת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A7%D7%99%D7%91%D7%95%D7%A5%20%D7%A9%D7%9E%D7%A8%D7%AA&unit=&startDate=&endDate="],
+            [31.307714, 34.492671, 1, "עין הבשור", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%99%D7%9F%20%D7%94%D7%91%D7%A9%D7%95%D7%A8&unit=&startDate=&endDate="],
+            [31.5728416, 34.7487221, 1, "איתן", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%99%D7%AA%D7%9F&unit=&startDate=&endDate="],
+            [31.5748942, 34.7643312, 1, "אבן שמואל", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%90%D7%91%D7%9F%20%D7%A9%D7%9E%D7%95%D7%90%D7%9C&unit=&startDate=&endDate="],
+            [32.690712, 34.9422744, 1, "עתלית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A2%D7%AA%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.005504, 35.1220258, 1, "נוה צוף", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%95%D7%94%20%D7%A6%D7%95%D7%A3&unit=&startDate=&endDate="],
+            [32.5864428, 35.4406793, 1, "מולדת", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%95%D7%9C%D7%93%D7%AA&unit=&startDate=&endDate="],
+            [31.8501774, 35.0354628, 1, "מבוא חורון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%91%D7%95%D7%90%20%D7%97%D7%95%D7%A8%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [32.8023795, 35.3897639, 1, "מצפה נטופה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%A6%D7%A4%D7%94%20%D7%A0%D7%98%D7%95%D7%A4%D7%94&unit=&startDate=&endDate="],
+            [31.3315994, 34.8935332, 1, "כרמית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A8%D7%9E%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.1950979, 34.9054806, 1, "גן חיים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%9F%20%D7%97%D7%99%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.365191, 35.515011, 1, "מחולה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%97%D7%95%D7%9C%D7%94&unit=&startDate=&endDate="],
+            [31.3556259, 34.7592233, 1, "גבעות בר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%91%D7%A2%D7%95%D7%AA%20%D7%91%D7%A8&unit=&startDate=&endDate="],
+            [31.8057198, 35.152731, 1, "מבשרת ציון", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9E%D7%91%D7%A9%D7%A8%D7%AA%20%D7%A6%D7%99%D7%95%D7%9F&unit=&startDate=&endDate="],
+            [31.6717215, 34.7542446, 1, "ניר בנים", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%A8%20%D7%91%D7%A0%D7%99%D7%9D&unit=&startDate=&endDate="],
+            [32.7708797, 35.0381249, 1, "נשר", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%A9%D7%A8&unit=&startDate=&endDate="],
+            [32.9533067, 35.165698, 1, "כפר יאסיף", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9B%D7%A4%D7%A8%20%D7%99%D7%90%D7%A1%D7%99%D7%A3&unit=&startDate=&endDate="],
+            [40.716667, -74.0, 1, "ניו יורק", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A0%D7%99%D7%95%20%D7%99%D7%95%D7%A8%D7%A7&unit=&startDate=&endDate="],
+            [31.944497, 35.149319, 1, "חרשה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%97%D7%A8%D7%A9%D7%94&unit=&startDate=&endDate="],
+            [32.786099, 35.441199, 1, "לביא", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%9C%D7%91%D7%99%D7%90&unit=&startDate=&endDate="],
+            [31.7018538, 35.107317, 1, "ביתר עילית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%99%D7%AA%D7%A8%20%D7%A2%D7%99%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="],
+            [32.0604256, 34.8760954, 1, "גני תקווה", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%92%D7%A0%D7%99%20%D7%AA%D7%A7%D7%95%D7%95%D7%94&unit=&startDate=&endDate="],
+            [32.0821317, 35.0907027, 1, "ברוכין", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%91%D7%A8%D7%95%D7%9B%D7%99%D7%9F&unit=&startDate=&endDate="],
+            [32.730488, 35.546782, 1, "פוריה עילית", "https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94?firstName=&lastName=&city=%D7%A4%D7%95%D7%A8%D7%99%D7%94%20%D7%A2%D7%99%D7%9C%D7%99%D7%AA&unit=&startDate=&endDate="]
+            ];
+
+        // Initialize map
+        const map = L.map('map', {
+            zoomControl: true,
+            minZoom: 7,
+            tap: true // Enable tap handler for iOS
+        }).setView([31.7683, 35.2137], 8);
+
+        // Add minimal style map tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '©OpenStreetMap, ©CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19,
+            opacity: 0.6
+        }).addTo(map);
+
+        // Initialize heatmap layer
+        const maxIntensity = 40; // Set to your actual maximum value
+        const heatData = points.map(point => [point[0], point[1], point[2] / maxIntensity]);
+        const heatLayer = L.heatLayer(heatData, {
+        radius: 25,
+        blur: 20,
+        maxZoom: 10,
+        gradient: {
+            0.07: 'blue',   // 1 casualty
+            0.1: 'cyan',    // 2 casualties
+            0.2: 'lime',    // 3-5 casualties
+            0.4: 'yellow',   // 6-13 casualties
+            0.5: 'red',      // 14-19 casualties
+            0.6: 'purple'    // 20+ casualties
+        }
+        }).addTo(map);
+
+        // Initialize point layer
+        const pointsLayer = L.layerGroup();
+        
+        // Create points with popups
+        points.forEach(point => {
+            const marker = L.circleMarker([point[0], point[1]], {
+                radius: 12, // Larger radius for touch
+                fillColor: getColor(point[2]),
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            });
+            
+            const popupContent = `
+                <div>
+                    <h3>${point[3]}</h3>
+                    <p>חללים: ${point[2]}</p>
+                    <a href="${point[4]}" target="_blank" class="popup-link">לשמות החללים →</a>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent, {
+                className: 'custom-popup'
+            });
+            
+            marker.on('click', function() {
+                this.openPopup();
+            });
+            
+            pointsLayer.addLayer(marker);
+        });
+
+        function getColor(intensity) {
+        if (intensity >= 20) return 'purple';
+        if (intensity > 13) return 'red';
+        if (intensity > 5) return 'yellow';
+        if (intensity > 2) return 'lime';
+        if (intensity > 1) return 'cyan';
+        return 'blue';
+        }
+
+        // Toggle between heatmap and points based on zoom level
+        map.on('zoomend', function() {
+            const currentZoom = map.getZoom();
+            if (currentZoom > 11) {
+                map.removeLayer(heatLayer);
+                pointsLayer.addTo(map);
+            } else {
+                map.removeLayer(pointsLayer);
+                heatLayer.addTo(map);
+            }
+        });
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            document.getElementById('navLinks').classList.toggle('active');
+        }
+
+        // Sidebar functionality
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const navLinks = document.getElementById('navLinks');
+            const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+            
+            if (!event.target.closest('.navbar-links') && 
+                !event.target.closest('.mobile-menu-btn') && 
+                navLinks.classList.contains('active')) {
+                navLinks.classList.remove('active');
+            }
+        });
+
+        // About modal
+        function showAbout() {
+            alert('האתר הוא מפת חום של החללים של מלחמת חרבות ברזל אתם יכולים להגדיל ולראות את המקומות שמהם נפלו החללים וללכת ולראות את החללים עצמם בלחיצה.');
+            if (window.innerWidth <= 768) {
+                document.getElementById('navLinks').classList.remove('active');
+            }
+        }
+
+        // Data modal
+        function showData() {
+            alert('לכל מי שמעוניין השארתי את המידע שלקח לי יותר מידי זמן כדי לסדר כאן בשבילכם כדי שבתקווה עוד משהו יפיק ערך מהסבל שלי וייצר משהו מגניב איתו. תהנו :) כדי להשתמש תורידו אז זה ותשנו את הסיומת לCSV');
+            if (window.innerWidth <= 768) {
+                document.getElementById('navLinks').classList.remove('active');
+            }
+        }
+
+        // Hide loading indicator when map is ready
+        map.on('load', function() {
+            document.getElementById('loading').style.display = 'none';
+        });
+
+        // Prevent pinch zoom on mobile devices except on map
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('#map')) return;
+            if (e.scale !== 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
